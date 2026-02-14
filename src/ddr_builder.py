@@ -10,6 +10,12 @@ Design goals:
 from __future__ import annotations
 
 import argparse
+import csv
+import io
+import json
+import re
+import zipfile
+from dataclasses import asdict, dataclass
 import json
 import re
 from dataclasses import dataclass, asdict
@@ -58,6 +64,11 @@ ISSUE_KEYWORDS = [
     "blister",
 ]
 
+CAUSE_HINTS = ["likely due to", "possible cause", "caused by", "because", "root cause", "source"]
+
+ACTION_HINTS = ["recommend", "repair", "replace", "seal", "rectify", "monitor", "clean", "retest"]
+
+SEVERITY_SCORES = {"critical": 4, "high": 3, "moderate": 2, "low": 1}
 CAUSE_HINTS = [
     "likely due to",
     "possible cause",
@@ -106,6 +117,63 @@ class DDR:
     missing_or_unclear_information: List[str]
 
 
+def _read_text(path: Path) -> str:
+    return path.read_text(encoding="utf-8", errors="ignore")
+
+
+def _read_json(path: Path) -> str:
+    data = json.loads(_read_text(path))
+    return json.dumps(data, indent=2)
+
+
+def _read_csv(path: Path) -> str:
+    rows = []
+    with path.open("r", encoding="utf-8", errors="ignore", newline="") as f:
+        for row in csv.reader(f):
+            if any(cell.strip() for cell in row):
+                rows.append(" | ".join(cell.strip() for cell in row if cell.strip()))
+    return "\n".join(rows)
+
+
+def _read_docx(path: Path) -> str:
+    with zipfile.ZipFile(path) as zf:
+        xml = zf.read("word/document.xml").decode("utf-8", errors="ignore")
+    xml = re.sub(r"</w:p>", "\n", xml)
+    xml = re.sub(r"<[^>]+>", "", xml)
+    return xml
+
+
+def _read_pdf_best_effort(path: Path) -> str:
+    data = path.read_bytes().decode("latin-1", errors="ignore")
+    # Best-effort extraction; works for many text-based PDFs, not scanned images.
+    candidates = re.findall(r"\(([^\)]{8,})\)", data)
+    return "\n".join(candidates)
+
+
+def load_document(path_str: str) -> str:
+    path = Path(path_str)
+    if not path.exists():
+        raise FileNotFoundError(f"File not found: {path}")
+
+    suffix = path.suffix.lower()
+    if suffix in {".txt", ".md", ".log"}:
+        return _read_text(path)
+    if suffix == ".json":
+        return _read_json(path)
+    if suffix in {".csv", ".tsv"}:
+        return _read_csv(path)
+    if suffix == ".docx":
+        return _read_docx(path)
+    if suffix == ".pdf":
+        return _read_pdf_best_effort(path)
+
+    # Unknown format: attempt text decode so user files still get a best-effort pass.
+    return path.read_bytes().decode("utf-8", errors="ignore")
+
+
+def normalize_line(line: str) -> str:
+    line = line.strip(" -•\t")
+    return re.sub(r"\s+", " ", line).strip()
 def normalize_line(line: str) -> str:
     line = line.strip(" -•\t")
     line = re.sub(r"\s+", " ", line)
@@ -133,6 +201,7 @@ def tag_line(text: str) -> List[str]:
         tags.append("issue")
     if any(k in lowered for k in CAUSE_HINTS):
         tags.append("cause")
+    if any(k in lowered for k in ACTION_HINTS) or re.match(r"^(recommend|action|next step)\b", lowered):
     if any(k in lowered for k in ACTION_HINTS):
         tags.append("action")
     if re.match(r"^(recommend|action|next step)\b", lowered):
@@ -150,6 +219,7 @@ def parse_document(content: str, source_name: str) -> List[Finding]:
             continue
         if re.match(r"^(inspection date|thermal scan date|property)\b", line.lower()):
             continue
+        findings.append(Finding(source=source_name, raw_line=line, area=detect_area(line), tags=tag_line(line)))
         area = detect_area(line)
         tags = tag_line(line)
         findings.append(Finding(source=source_name, raw_line=line, area=area, tags=tags))
@@ -157,6 +227,7 @@ def parse_document(content: str, source_name: str) -> List[Finding]:
 
 
 def dedupe_lines(lines: List[str]) -> List[str]:
+    seen, output = set(), []
     seen = set()
     output = []
     for line in lines:
@@ -168,12 +239,18 @@ def dedupe_lines(lines: List[str]) -> List[str]:
 
 
 def find_conflicts(findings: List[Finding]) -> List[str]:
+    conflicts, by_area = [], {}
     conflicts = []
     by_area: Dict[str, List[Finding]] = {}
     for f in findings:
         by_area.setdefault(f.area, []).append(f)
 
     for area, area_findings in by_area.items():
+        temps: List[float] = []
+        for f in area_findings:
+            temps.extend(extract_temperature(f.raw_line))
+        if len(temps) >= 2 and (max(temps) - min(temps)) >= 15:
+            conflicts.append(f"Temperature readings for {area} vary significantly ({min(temps):.1f}°C to {max(temps):.1f}°C).")
         temps = []
         for f in area_findings:
             temps.extend(extract_temperature(f.raw_line))
@@ -188,6 +265,9 @@ def find_conflicts(findings: List[Finding]) -> List[str]:
 
 def severity_from_findings(findings: List[Finding]) -> Tuple[str, str]:
     score = 1
+    rationale: List[str] = []
+    all_text = " ".join(f.raw_line.lower() for f in findings)
+
     rationale = []
     all_text = " ".join(f.raw_line.lower() for f in findings)
     if any(word in all_text for word in ["active leak", "major crack", "electrical hazard", "unsafe"]):
@@ -203,6 +283,32 @@ def severity_from_findings(findings: List[Finding]) -> Tuple[str, str]:
         score = max(score, 2)
         rationale.append("moisture/thermal anomalies were identified")
 
+    label = {v: k.title() for k, v in SEVERITY_SCORES.items()}[score]
+    return label, ("; ".join(rationale) if rationale else "limited evidence of damage in source documents")
+
+
+def build_ddr(inspection_text: str, thermal_text: str) -> DDR:
+    findings = parse_document(inspection_text, "Inspection Report") + parse_document(thermal_text, "Thermal Report")
+
+    area_map: Dict[str, List[str]] = {}
+    issue_summary: List[str] = []
+    root_causes: List[str] = []
+    actions: List[str] = []
+    notes: List[str] = []
+    missing: List[str] = []
+
+    for f in findings:
+        area_map.setdefault(f.area, []).append(f"[{f.source}] {f.raw_line}")
+        if "issue" in f.tags:
+            issue_summary.append(f.raw_line)
+        if "cause" in f.tags:
+            root_causes.append(f.raw_line)
+        if "action" in f.tags:
+            actions.append(f.raw_line)
+        if "thermal" in f.tags:
+            notes.append(f"Thermal input captured: {f.raw_line}")
+
+    notes.extend([f"Conflict noted: {c}" for c in find_conflicts(findings)])
     label = {v: k.title() for k, v in SEVERITY_SCORES.items()}.get(score, "Low")
     reason = "; ".join(rationale) if rationale else "limited evidence of damage in source documents"
     return label, reason
@@ -248,6 +354,7 @@ def build_ddr(inspection_text: str, thermal_text: str) -> DDR:
 
     return DDR(
         property_issue_summary=dedupe_lines(issue_summary) or ["Not Available"],
+        area_wise_observations={a: dedupe_lines(v) for a, v in sorted(area_map.items())} or {"General": ["Not Available"]},
         area_wise_observations={
             area: dedupe_lines(lines) for area, lines in sorted(area_map.items())
         }
@@ -263,12 +370,17 @@ def build_ddr(inspection_text: str, thermal_text: str) -> DDR:
 def render_markdown(ddr: DDR) -> str:
     lines: List[str] = ["# Main DDR (Detailed Diagnostic Report)", ""]
     lines.append("## 1. Property Issue Summary")
+    lines.extend(f"- {x}" for x in ddr.property_issue_summary)
     for item in ddr.property_issue_summary:
         lines.append(f"- {item}")
 
     lines.append("\n## 2. Area-wise Observations")
     for area, items in ddr.area_wise_observations.items():
         lines.append(f"### {area}")
+        lines.extend(f"- {x}" for x in items)
+
+    lines.append("\n## 3. Probable Root Cause")
+    lines.extend(f"- {x}" for x in ddr.probable_root_cause)
         for item in items:
             lines.append(f"- {item}")
 
@@ -281,6 +393,13 @@ def render_markdown(ddr: DDR) -> str:
     lines.append(f"- Reasoning: {ddr.severity_assessment['reasoning']}")
 
     lines.append("\n## 5. Recommended Actions")
+    lines.extend(f"- {x}" for x in ddr.recommended_actions)
+
+    lines.append("\n## 6. Additional Notes")
+    lines.extend(f"- {x}" for x in ddr.additional_notes)
+
+    lines.append("\n## 7. Missing or Unclear Information")
+    lines.extend(f"- {x}" for x in ddr.missing_or_unclear_information)
     for item in ddr.recommended_actions:
         lines.append(f"- {item}")
 
@@ -297,12 +416,20 @@ def render_markdown(ddr: DDR) -> str:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Generate DDR from inspection and thermal reports")
+    parser.add_argument("--inspection", required=True, help="Path to inspection report file (txt/json/csv/docx/pdf)")
+    parser.add_argument("--thermal", required=True, help="Path to thermal report file (txt/json/csv/docx/pdf)")
     parser.add_argument("--inspection", required=True, help="Path to inspection report text file")
     parser.add_argument("--thermal", required=True, help="Path to thermal report text file")
     parser.add_argument("--out", required=True, help="Output markdown file")
     parser.add_argument("--json", dest="json_out", help="Optional output JSON path")
     args = parser.parse_args()
 
+    inspection_text = load_document(args.inspection)
+    thermal_text = load_document(args.thermal)
+
+    ddr = build_ddr(inspection_text, thermal_text)
+    Path(args.out).parent.mkdir(parents=True, exist_ok=True)
+    Path(args.out).write_text(render_markdown(ddr), encoding="utf-8")
     inspection_text = Path(args.inspection).read_text(encoding="utf-8")
     thermal_text = Path(args.thermal).read_text(encoding="utf-8")
 
