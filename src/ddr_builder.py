@@ -6,6 +6,10 @@ Features:
 - conflict and missing-data handling
 - multi-format ingestion (with optional OCR for image-heavy PDFs)
 - markdown/json output + built-in PDF report rendering
+Design goals:
+- deterministic and auditable extraction (no hidden hallucinations)
+- conflict and missing-data handling
+- reusable for similarly structured technical reports
 """
 
 from __future__ import annotations
@@ -13,13 +17,27 @@ from __future__ import annotations
 import argparse
 import csv
 import importlib.util
+import io
 import json
 import re
 import zipfile
 from dataclasses import asdict, dataclass
+import json
+import re
+from dataclasses import dataclass, asdict
 from pathlib import Path
 from typing import Dict, List, Tuple
 
+
+SECTION_NAMES = [
+    "Property Issue Summary",
+    "Area-wise Observations",
+    "Probable Root Cause",
+    "Severity Assessment",
+    "Recommended Actions",
+    "Additional Notes",
+    "Missing or Unclear Information",
+]
 
 AREA_HINTS = [
     "roof",
@@ -55,6 +73,37 @@ ISSUE_KEYWORDS = [
 CAUSE_HINTS = ["likely due to", "possible cause", "caused by", "because", "root cause", "source"]
 ACTION_HINTS = ["recommend", "repair", "replace", "seal", "rectify", "monitor", "clean", "retest"]
 SEVERITY_SCORES = {"critical": 4, "high": 3, "moderate": 2, "low": 1}
+
+ACTION_HINTS = ["recommend", "repair", "replace", "seal", "rectify", "monitor", "clean", "retest"]
+
+SEVERITY_SCORES = {"critical": 4, "high": 3, "moderate": 2, "low": 1}
+CAUSE_HINTS = [
+    "likely due to",
+    "possible cause",
+    "caused by",
+    "because",
+    "root cause",
+    "source",
+]
+
+ACTION_HINTS = [
+    "recommend",
+    "repair",
+    "replace",
+    "seal",
+    "rectify",
+    "monitor",
+    "inspection advised",
+    "clean",
+    "retest",
+]
+
+SEVERITY_SCORES = {
+    "critical": 4,
+    "high": 3,
+    "moderate": 2,
+    "low": 1,
+}
 
 
 @dataclass
@@ -187,6 +236,18 @@ def _read_image_best_effort(path: Path) -> Tuple[str, List[str]]:
 
 
 def load_document(path_str: str) -> Tuple[str, List[str]]:
+    xml = re.sub(r"<[^>]+>", "", xml)
+    return xml
+
+
+def _read_pdf_best_effort(path: Path) -> str:
+    data = path.read_bytes().decode("latin-1", errors="ignore")
+    # Best-effort extraction; works for many text-based PDFs, not scanned images.
+    candidates = re.findall(r"\(([^\)]{8,})\)", data)
+    return "\n".join(candidates)
+
+
+def load_document(path_str: str) -> str:
     path = Path(path_str)
     if not path.exists():
         raise FileNotFoundError(f"File not found: {path}")
@@ -210,6 +271,27 @@ def load_document(path_str: str) -> Tuple[str, List[str]]:
 
 def normalize_line(line: str) -> str:
     return re.sub(r"\s+", " ", line.strip(" -•\t")).strip()
+        return _read_text(path)
+    if suffix == ".json":
+        return _read_json(path)
+    if suffix in {".csv", ".tsv"}:
+        return _read_csv(path)
+    if suffix == ".docx":
+        return _read_docx(path)
+    if suffix == ".pdf":
+        return _read_pdf_best_effort(path)
+
+    # Unknown format: attempt text decode so user files still get a best-effort pass.
+    return path.read_bytes().decode("utf-8", errors="ignore")
+
+
+def normalize_line(line: str) -> str:
+    line = line.strip(" -•\t")
+    return re.sub(r"\s+", " ", line).strip()
+def normalize_line(line: str) -> str:
+    line = line.strip(" -•\t")
+    line = re.sub(r"\s+", " ", line)
+    return line.strip()
 
 
 def detect_area(text: str) -> str:
@@ -234,6 +316,9 @@ def tag_line(text: str) -> List[str]:
     if any(k in lowered for k in CAUSE_HINTS):
         tags.append("cause")
     if any(k in lowered for k in ACTION_HINTS) or re.match(r"^(recommend|action|next step)\b", lowered):
+    if any(k in lowered for k in ACTION_HINTS):
+        tags.append("action")
+    if re.match(r"^(recommend|action|next step)\b", lowered):
         tags.append("action")
     if extract_temperature(text):
         tags.append("thermal")
@@ -249,11 +334,16 @@ def parse_document(content: str, source_name: str) -> List[Finding]:
         if re.match(r"^(inspection date|thermal scan date|property)\b", line.lower()):
             continue
         findings.append(Finding(source=source_name, raw_line=line, area=detect_area(line), tags=tag_line(line)))
+        area = detect_area(line)
+        tags = tag_line(line)
+        findings.append(Finding(source=source_name, raw_line=line, area=area, tags=tags))
     return findings
 
 
 def dedupe_lines(lines: List[str]) -> List[str]:
     seen, output = set(), []
+    seen = set()
+    output = []
     for line in lines:
         key = re.sub(r"\W+", "", line.lower())
         if key and key not in seen:
@@ -273,6 +363,26 @@ def find_conflicts(findings: List[Finding]) -> List[str]:
             temps.extend(extract_temperature(finding.raw_line))
         if len(temps) >= 2 and (max(temps) - min(temps)) >= 15:
             conflicts.append(f"Temperature readings for {area} vary significantly ({min(temps):.1f}°C to {max(temps):.1f}°C).")
+    conflicts = []
+    by_area: Dict[str, List[Finding]] = {}
+    for f in findings:
+        by_area.setdefault(f.area, []).append(f)
+
+    for area, area_findings in by_area.items():
+        temps: List[float] = []
+        for f in area_findings:
+            temps.extend(extract_temperature(f.raw_line))
+        if len(temps) >= 2 and (max(temps) - min(temps)) >= 15:
+            conflicts.append(f"Temperature readings for {area} vary significantly ({min(temps):.1f}°C to {max(temps):.1f}°C).")
+        temps = []
+        for f in area_findings:
+            temps.extend(extract_temperature(f.raw_line))
+        if len(temps) >= 2:
+            spread = max(temps) - min(temps)
+            if spread >= 15:
+                conflicts.append(
+                    f"Temperature readings for {area} vary significantly ({min(temps):.1f}°C to {max(temps):.1f}°C)."
+                )
     return conflicts
 
 
@@ -281,6 +391,8 @@ def severity_from_findings(findings: List[Finding]) -> Tuple[str, str]:
     rationale: List[str] = []
     all_text = " ".join(f.raw_line.lower() for f in findings)
 
+    rationale = []
+    all_text = " ".join(f.raw_line.lower() for f in findings)
     if any(word in all_text for word in ["active leak", "major crack", "electrical hazard", "unsafe"]):
         score = max(score, 4)
         rationale.append("critical safety/structural indicators were detected")
@@ -300,6 +412,10 @@ def severity_from_findings(findings: List[Finding]) -> Tuple[str, str]:
 
 
 def build_ddr(inspection_text: str, thermal_text: str, ingestion_notes: List[str] | None = None) -> DDR:
+    return label, ("; ".join(rationale) if rationale else "limited evidence of damage in source documents")
+
+
+def build_ddr(inspection_text: str, thermal_text: str) -> DDR:
     findings = parse_document(inspection_text, "Inspection Report") + parse_document(thermal_text, "Thermal Report")
 
     area_map: Dict[str, List[str]] = {}
@@ -321,6 +437,52 @@ def build_ddr(inspection_text: str, thermal_text: str, ingestion_notes: List[str
             notes.append(f"Thermal input captured: {finding.raw_line}")
 
     notes.extend([f"Conflict noted: {item}" for item in find_conflicts(findings)])
+    notes: List[str] = []
+    missing: List[str] = []
+
+    for f in findings:
+        area_map.setdefault(f.area, []).append(f"[{f.source}] {f.raw_line}")
+        if "issue" in f.tags:
+            issue_summary.append(f.raw_line)
+        if "cause" in f.tags:
+            root_causes.append(f.raw_line)
+        if "action" in f.tags:
+            actions.append(f.raw_line)
+        if "thermal" in f.tags:
+            notes.append(f"Thermal input captured: {f.raw_line}")
+
+    notes.extend([f"Conflict noted: {c}" for c in find_conflicts(findings)])
+    label = {v: k.title() for k, v in SEVERITY_SCORES.items()}.get(score, "Low")
+    reason = "; ".join(rationale) if rationale else "limited evidence of damage in source documents"
+    return label, reason
+
+
+def build_ddr(inspection_text: str, thermal_text: str) -> DDR:
+    findings = parse_document(inspection_text, "Inspection Report") + parse_document(
+        thermal_text, "Thermal Report"
+    )
+
+    area_map: Dict[str, List[str]] = {}
+    issue_summary = []
+    root_causes = []
+    actions = []
+    notes = []
+    missing = []
+
+    for f in findings:
+        area_map.setdefault(f.area, []).append(f"[{f.source}] {f.raw_line}")
+        text = f.raw_line
+        if "issue" in f.tags:
+            issue_summary.append(text)
+        if "cause" in f.tags:
+            root_causes.append(text)
+        if "action" in f.tags:
+            actions.append(text)
+        if "thermal" in f.tags:
+            notes.append(f"Thermal input captured: {text}")
+
+    conflicts = find_conflicts(findings)
+    notes.extend([f"Conflict noted: {c}" for c in conflicts])
 
     if not issue_summary:
         missing.append("Issue descriptions: Not Available")
@@ -336,6 +498,10 @@ def build_ddr(inspection_text: str, thermal_text: str, ingestion_notes: List[str
     return DDR(
         property_issue_summary=dedupe_lines(issue_summary) or ["Not Available"],
         area_wise_observations={area: dedupe_lines(items) for area, items in sorted(area_map.items())}
+        area_wise_observations={a: dedupe_lines(v) for a, v in sorted(area_map.items())} or {"General": ["Not Available"]},
+        area_wise_observations={
+            area: dedupe_lines(lines) for area, lines in sorted(area_map.items())
+        }
         or {"General": ["Not Available"]},
         probable_root_cause=dedupe_lines(root_causes) or ["Not Available"],
         severity_assessment={"level": severity_label, "reasoning": severity_reason},
@@ -349,6 +515,9 @@ def render_markdown(ddr: DDR) -> str:
     lines: List[str] = ["# Main DDR (Detailed Diagnostic Report)", ""]
     lines.append("## 1. Property Issue Summary")
     lines.extend(f"- {item}" for item in ddr.property_issue_summary)
+    lines.extend(f"- {x}" for x in ddr.property_issue_summary)
+    for item in ddr.property_issue_summary:
+        lines.append(f"- {item}")
 
     lines.append("\n## 2. Area-wise Observations")
     for area, items in ddr.area_wise_observations.items():
@@ -357,6 +526,16 @@ def render_markdown(ddr: DDR) -> str:
 
     lines.append("\n## 3. Probable Root Cause")
     lines.extend(f"- {item}" for item in ddr.probable_root_cause)
+        lines.extend(f"- {x}" for x in items)
+
+    lines.append("\n## 3. Probable Root Cause")
+    lines.extend(f"- {x}" for x in ddr.probable_root_cause)
+        for item in items:
+            lines.append(f"- {item}")
+
+    lines.append("\n## 3. Probable Root Cause")
+    for item in ddr.probable_root_cause:
+        lines.append(f"- {item}")
 
     lines.append("\n## 4. Severity Assessment (with reasoning)")
     lines.append(f"- Severity Level: {ddr.severity_assessment['level']}")
@@ -377,172 +556,54 @@ def _pdf_escape(text: str) -> str:
     return text.replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)")
 
 
-def _wrap_text(line: str, width: int = 105) -> List[str]:
-    words = line.split()
-    if not words:
-        return [""]
-    wrapped: List[str] = []
-    current = words[0]
-    for word in words[1:]:
-        if len(current) + 1 + len(word) <= width:
-            current += " " + word
-        else:
-            wrapped.append(current)
-            current = word
-    wrapped.append(current)
-    return wrapped
+def render_simple_pdf(text: str, output_path: Path) -> None:
+    """Write a simple single-font PDF from plain text without external dependencies."""
+    lines = text.splitlines() or [""]
+    page_width, page_height = 595, 842  # A4 points
+    margin, line_height = 50, 14
+    max_lines = max(1, (page_height - 2 * margin) // line_height)
 
+    pages: List[List[str]] = []
+    current: List[str] = []
+    for line in lines:
+        if len(current) >= max_lines:
+            pages.append(current)
+            current = []
+        current.append(line[:140])
+    if current:
+        pages.append(current)
 
-def _markdown_line_style(line: str) -> Tuple[float, float, float, int, str]:
-    """Return RGB, font size, and normalized text line style from markdown-like line."""
-    stripped = line.strip()
-    if stripped.startswith("# "):
-        return (0.09, 0.33, 0.62, 17, stripped[2:].strip())
-    if stripped.startswith("## "):
-        return (0.12, 0.45, 0.78, 13, stripped[3:].strip())
-    if stripped.startswith("### "):
-        return (0.21, 0.50, 0.33, 11, stripped[4:].strip())
-    if stripped.startswith("- "):
-        return (0.10, 0.10, 0.10, 10, f"• {stripped[2:].strip()}")
-    if not stripped:
-        return (0.10, 0.10, 0.10, 10, "")
-    return (0.10, 0.10, 0.10, 10, stripped)
-
-
-def _image_xobject_from_path(path: Path) -> Tuple[bytes, int, int] | None:
-    if not _module_exists("PIL"):
-        return None
-    from PIL import Image  # type: ignore
-    import io
-
-    try:
-        img = Image.open(path).convert("RGB")
-        width, height = img.size
-        buff = io.BytesIO()
-        img.save(buff, format="JPEG", quality=80)
-        jpg = buff.getvalue()
-        return jpg, width, height
-    except Exception:
-        return None
-
-
-def render_simple_pdf(text: str, output_path: Path, image_paths: List[str] | None = None) -> None:
-    """Write a styled PDF report with colored headings and optional image appendix.
-
-    - Headings/subheadings are colorized.
-    - Optional images are embedded on appendix pages when Pillow is available.
-    """
-    page_width, page_height = 595, 842
-    margin = 42
-
-    pages: List[List[str]] = [[]]
-    y = page_height - margin
-
-    def emit(cmd: str) -> None:
-        pages[-1].append(cmd)
-
-    def new_page() -> None:
-        nonlocal y
-        pages.append([])
-        y = page_height - margin
-
-    emit("BT")
-    for raw in text.splitlines():
-        r, g, b, size, normalized = _markdown_line_style(raw)
-        wrapped = _wrap_text(normalized, width=100 if size >= 13 else 110)
-        for idx, segment in enumerate(wrapped):
-            line_gap = size + (6 if idx == 0 else 3)
-            if y - line_gap < margin:
-                emit("ET")
-                new_page()
-                emit("BT")
-            y -= line_gap
-            emit(f"{r:.3f} {g:.3f} {b:.3f} rg")
-            emit(f"/F1 {size} Tf")
-            emit(f"1 0 0 1 {margin} {y} Tm")
-            emit(f"({_pdf_escape(segment)}) Tj")
-    emit("ET")
-
-    image_sources = [Path(p) for p in (image_paths or []) if Path(p).exists()]
-    image_obj_info: List[Tuple[int, int, int]] = []
     objects: List[bytes] = []
 
-    def add_object(payload: str | bytes) -> int:
-        if isinstance(payload, str):
-            payload = payload.encode("latin-1", errors="ignore")
-        objects.append(payload)
+    def add_object(payload: str) -> int:
+        objects.append(payload.encode("latin-1", errors="ignore"))
         return len(objects)
 
     font_obj = add_object("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>")
 
-    for image_path in image_sources:
-        img_data = _image_xobject_from_path(image_path)
-        if img_data:
-            jpg, w, h = img_data
-            payload = (
-                f"<< /Type /XObject /Subtype /Image /Width {w} /Height {h} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length {len(jpg)} >>\nstream\n".encode("latin-1")
-                + jpg
-                + b"\nendstream"
-            )
-            obj_id = add_object(payload)
-            image_obj_info.append((obj_id, w, h))
-
-    page_obj_ids: List[int] = []
-    content_obj_ids: List[int] = []
-
-    for stream_lines in pages:
+    page_obj_ids = []
+    content_obj_ids = []
+    for page_lines in pages:
+        stream_lines = ["BT", "/F1 10 Tf", f"1 0 0 1 {margin} {page_height - margin} Tm", f"0 -{line_height} Td"]
+        for line in page_lines:
+            stream_lines.append(f"({_pdf_escape(line)}) Tj")
+            stream_lines.append(f"0 -{line_height} Td")
+        stream_lines.append("ET")
         stream = "\n".join(stream_lines)
-        content_obj_ids.append(add_object(f"<< /Length {len(stream.encode('latin-1', errors='ignore'))} >>\nstream\n{stream}\nendstream"))
-        page_obj_ids.append(add_object("PENDING_PAGE"))
-
-    for i, image_path in enumerate(image_sources):
-        if i < len(image_obj_info):
-            _img_obj, iw, ih = image_obj_info[i]
-            max_w, max_h = page_width - 2 * margin, page_height - 2 * margin - 30
-            scale = min(max_w / iw, max_h / ih)
-            draw_w, draw_h = iw * scale, ih * scale
-            x, y0 = (page_width - draw_w) / 2, margin + 20
-            caption = _pdf_escape(f"Thermal/Inspection Image: {image_path.name}")
-            stream = "\n".join([
-                "BT",
-                "0.12 0.45 0.78 rg",
-                "/F1 12 Tf",
-                f"1 0 0 1 {margin} {page_height - margin} Tm",
-                f"({caption}) Tj",
-                "ET",
-                "q",
-                f"{draw_w:.2f} 0 0 {draw_h:.2f} {x:.2f} {y0:.2f} cm",
-                f"/Im{i+1} Do",
-                "Q",
-            ])
-        else:
-            caption = _pdf_escape(f"Image not embedded (install Pillow): {image_path}")
-            stream = "\n".join([
-                "BT",
-                "0.8 0.2 0.2 rg",
-                "/F1 11 Tf",
-                f"1 0 0 1 {margin} {page_height - margin} Tm",
-                f"({caption}) Tj",
-                "ET",
-            ])
-        content_obj_ids.append(add_object(f"<< /Length {len(stream.encode('latin-1', errors='ignore'))} >>\nstream\n{stream}\nendstream"))
-        page_obj_ids.append(add_object(f"PENDING_IMAGE_PAGE_{i}"))
+        content_obj = add_object(f"<< /Length {len(stream.encode('latin-1', errors='ignore'))} >>\nstream\n{stream}\nendstream")
+        content_obj_ids.append(content_obj)
+        page_obj = add_object("PENDING_PAGE")
+        page_obj_ids.append(page_obj)
 
     kids_refs = " ".join(f"{pid} 0 R" for pid in page_obj_ids)
     pages_obj = add_object(f"<< /Type /Pages /Count {len(page_obj_ids)} /Kids [ {kids_refs} ] >>")
 
     for i, page_obj_id in enumerate(page_obj_ids):
-        resource_parts = [f"/Font << /F1 {font_obj} 0 R >>"]
-        if i >= len(pages) and (i - len(pages)) < len(image_obj_info):
-            img_idx = i - len(pages)
-            img_obj, _, _ = image_obj_info[img_idx]
-            resource_parts.append(f"/XObject << /Im{img_idx+1} {img_obj} 0 R >>")
-        resources = " ".join(resource_parts)
         page_dict = (
             f"<< /Type /Page /Parent {pages_obj} 0 R /MediaBox [0 0 {page_width} {page_height}] "
-            f"/Resources << {resources} >> /Contents {content_obj_ids[i]} 0 R >>"
+            f"/Resources << /Font << /F1 {font_obj} 0 R >> >> /Contents {content_obj_ids[i]} 0 R >>"
         )
-        objects[page_obj_id - 1] = page_dict.encode("latin-1", errors="ignore")
+        objects[page_obj_id - 1] = page_dict.encode("latin-1")
 
     catalog_obj = add_object(f"<< /Type /Catalog /Pages {pages_obj} 0 R >>")
 
@@ -560,9 +621,34 @@ def render_simple_pdf(text: str, output_path: Path, image_paths: List[str] | Non
     for off in offsets[1:]:
         pdf.extend(f"{off:010d} 00000 n \n".encode("latin-1"))
 
-    pdf.extend((f"trailer\n<< /Size {len(objects) + 1} /Root {catalog_obj} 0 R >>\nstartxref\n{xref_start}\n%%EOF\n").encode("latin-1"))
+    pdf.extend(
+        (
+            f"trailer\n<< /Size {len(objects) + 1} /Root {catalog_obj} 0 R >>\n"
+            f"startxref\n{xref_start}\n%%EOF\n"
+        ).encode("latin-1")
+    )
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_bytes(pdf)
+    lines.extend(f"- {x}" for x in ddr.recommended_actions)
+
+    lines.append("\n## 6. Additional Notes")
+    lines.extend(f"- {x}" for x in ddr.additional_notes)
+
+    lines.append("\n## 7. Missing or Unclear Information")
+    lines.extend(f"- {x}" for x in ddr.missing_or_unclear_information)
+    for item in ddr.recommended_actions:
+        lines.append(f"- {item}")
+
+    lines.append("\n## 6. Additional Notes")
+    for item in ddr.additional_notes:
+        lines.append(f"- {item}")
+
+    lines.append("\n## 7. Missing or Unclear Information")
+    for item in ddr.missing_or_unclear_information:
+        lines.append(f"- {item}")
+
+    return "\n".join(lines) + "\n"
+
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Generate DDR from inspection and thermal reports")
@@ -571,19 +657,33 @@ def main() -> None:
     parser.add_argument("--out", required=True, help="Output markdown path")
     parser.add_argument("--json", dest="json_out", help="Optional output JSON path")
     parser.add_argument("--out-pdf", dest="pdf_out", help="Optional output PDF path")
-    parser.add_argument("--images", nargs="*", default=[], help="Optional image files to append in PDF report")
     args = parser.parse_args()
 
-    try:
-        inspection_text, inspection_notes = load_document(args.inspection)
-        thermal_text, thermal_notes = load_document(args.thermal)
-    except FileNotFoundError as exc:
-        raise SystemExit(
-            f"{exc}\nTip: verify file names/paths. Example: --inspection examples/inspection_report_sample.txt --thermal examples/thermal_report_sample.txt"
-        )
+    inspection_text, inspection_notes = load_document(args.inspection)
+    thermal_text, thermal_notes = load_document(args.thermal)
     ddr = build_ddr(inspection_text, thermal_text, ingestion_notes=inspection_notes + thermal_notes)
 
     markdown = render_markdown(ddr)
+    parser.add_argument("--inspection", required=True, help="Path to inspection report file (txt/json/csv/docx/pdf)")
+    parser.add_argument("--thermal", required=True, help="Path to thermal report file (txt/json/csv/docx/pdf)")
+    parser.add_argument("--inspection", required=True, help="Path to inspection report text file")
+    parser.add_argument("--thermal", required=True, help="Path to thermal report text file")
+    parser.add_argument("--out", required=True, help="Output markdown file")
+    parser.add_argument("--json", dest="json_out", help="Optional output JSON path")
+    args = parser.parse_args()
+
+    inspection_text = load_document(args.inspection)
+    thermal_text = load_document(args.thermal)
+
+    ddr = build_ddr(inspection_text, thermal_text)
+    Path(args.out).parent.mkdir(parents=True, exist_ok=True)
+    Path(args.out).write_text(render_markdown(ddr), encoding="utf-8")
+    inspection_text = Path(args.inspection).read_text(encoding="utf-8")
+    thermal_text = Path(args.thermal).read_text(encoding="utf-8")
+
+    ddr = build_ddr(inspection_text, thermal_text)
+    markdown = render_markdown(ddr)
+
     out_path = Path(args.out)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(markdown, encoding="utf-8")
@@ -591,7 +691,7 @@ def main() -> None:
     if args.json_out:
         Path(args.json_out).write_text(json.dumps(asdict(ddr), indent=2), encoding="utf-8")
     if args.pdf_out:
-        render_simple_pdf(markdown, Path(args.pdf_out), image_paths=args.images)
+        render_simple_pdf(markdown, Path(args.pdf_out))
 
 
 if __name__ == "__main__":

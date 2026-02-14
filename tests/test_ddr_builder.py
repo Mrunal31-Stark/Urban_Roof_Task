@@ -5,6 +5,10 @@ import zipfile
 from pathlib import Path
 
 from src.ddr_builder import build_ddr, load_document, render_markdown, render_simple_pdf
+from src.ddr_builder import build_ddr, load_document, render_markdown
+import unittest
+
+from src.ddr_builder import build_ddr, render_markdown
 
 
 class TestDDRBuilder(unittest.TestCase):
@@ -41,6 +45,15 @@ class TestDDRBuilder(unittest.TestCase):
             csv_file.write_text("area,observation\nroof,damp patch", encoding="utf-8")
             text, _ = load_document(str(csv_file))
             self.assertIn("damp patch", text)
+            self.assertIn("Roof leak", load_document(str(txt)))
+
+            js = base / "thermal.json"
+            js.write_text(json.dumps({"temp": "34 C anomaly"}), encoding="utf-8")
+            self.assertIn("34 C anomaly", load_document(str(js)))
+
+            csv_file = base / "obs.csv"
+            csv_file.write_text("area,observation\nroof,damp patch", encoding="utf-8")
+            self.assertIn("damp patch", load_document(str(csv_file)))
 
             docx = base / "report.docx"
             xml = """<?xml version='1.0' encoding='UTF-8' standalone='yes'?><w:document xmlns:w='http://schemas.openxmlformats.org/wordprocessingml/2006/main'><w:body><w:p><w:r><w:t>Bathroom wall moisture found</w:t></w:r></w:p></w:body></w:document>"""
@@ -55,6 +68,11 @@ class TestDDRBuilder(unittest.TestCase):
             render_simple_pdf("# Title\n- line", out)
             data = out.read_bytes()
             self.assertTrue(data.startswith(b"%PDF-1.4"))
+            self.assertIn("Bathroom wall moisture", load_document(str(docx)))
+
+        roof_items = ddr.area_wise_observations.get("Roof")
+        self.assertIsNotNone(roof_items)
+        self.assertEqual(len(ddr.property_issue_summary), 1)
 
 
 if __name__ == "__main__":
