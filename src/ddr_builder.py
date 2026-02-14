@@ -6,6 +6,10 @@ Features:
 - conflict and missing-data handling
 - multi-format ingestion (with optional OCR for image-heavy PDFs)
 - markdown/json output + built-in PDF report rendering
+Design goals:
+- deterministic and auditable extraction (no hidden hallucinations)
+- conflict and missing-data handling
+- reusable for similarly structured technical reports
 """
 
 from __future__ import annotations
@@ -13,13 +17,27 @@ from __future__ import annotations
 import argparse
 import csv
 import importlib.util
+import io
 import json
 import re
 import zipfile
 from dataclasses import asdict, dataclass
+import json
+import re
+from dataclasses import dataclass, asdict
 from pathlib import Path
 from typing import Dict, List, Tuple
 
+
+SECTION_NAMES = [
+    "Property Issue Summary",
+    "Area-wise Observations",
+    "Probable Root Cause",
+    "Severity Assessment",
+    "Recommended Actions",
+    "Additional Notes",
+    "Missing or Unclear Information",
+]
 
 AREA_HINTS = [
     "roof",
@@ -55,6 +73,37 @@ ISSUE_KEYWORDS = [
 CAUSE_HINTS = ["likely due to", "possible cause", "caused by", "because", "root cause", "source"]
 ACTION_HINTS = ["recommend", "repair", "replace", "seal", "rectify", "monitor", "clean", "retest"]
 SEVERITY_SCORES = {"critical": 4, "high": 3, "moderate": 2, "low": 1}
+
+ACTION_HINTS = ["recommend", "repair", "replace", "seal", "rectify", "monitor", "clean", "retest"]
+
+SEVERITY_SCORES = {"critical": 4, "high": 3, "moderate": 2, "low": 1}
+CAUSE_HINTS = [
+    "likely due to",
+    "possible cause",
+    "caused by",
+    "because",
+    "root cause",
+    "source",
+]
+
+ACTION_HINTS = [
+    "recommend",
+    "repair",
+    "replace",
+    "seal",
+    "rectify",
+    "monitor",
+    "inspection advised",
+    "clean",
+    "retest",
+]
+
+SEVERITY_SCORES = {
+    "critical": 4,
+    "high": 3,
+    "moderate": 2,
+    "low": 1,
+}
 
 
 @dataclass
@@ -187,6 +236,18 @@ def _read_image_best_effort(path: Path) -> Tuple[str, List[str]]:
 
 
 def load_document(path_str: str) -> Tuple[str, List[str]]:
+    xml = re.sub(r"<[^>]+>", "", xml)
+    return xml
+
+
+def _read_pdf_best_effort(path: Path) -> str:
+    data = path.read_bytes().decode("latin-1", errors="ignore")
+    # Best-effort extraction; works for many text-based PDFs, not scanned images.
+    candidates = re.findall(r"\(([^\)]{8,})\)", data)
+    return "\n".join(candidates)
+
+
+def load_document(path_str: str) -> str:
     path = Path(path_str)
     if not path.exists():
         raise FileNotFoundError(f"File not found: {path}")
@@ -210,6 +271,27 @@ def load_document(path_str: str) -> Tuple[str, List[str]]:
 
 def normalize_line(line: str) -> str:
     return re.sub(r"\s+", " ", line.strip(" -•\t")).strip()
+        return _read_text(path)
+    if suffix == ".json":
+        return _read_json(path)
+    if suffix in {".csv", ".tsv"}:
+        return _read_csv(path)
+    if suffix == ".docx":
+        return _read_docx(path)
+    if suffix == ".pdf":
+        return _read_pdf_best_effort(path)
+
+    # Unknown format: attempt text decode so user files still get a best-effort pass.
+    return path.read_bytes().decode("utf-8", errors="ignore")
+
+
+def normalize_line(line: str) -> str:
+    line = line.strip(" -•\t")
+    return re.sub(r"\s+", " ", line).strip()
+def normalize_line(line: str) -> str:
+    line = line.strip(" -•\t")
+    line = re.sub(r"\s+", " ", line)
+    return line.strip()
 
 
 def detect_area(text: str) -> str:
@@ -234,6 +316,9 @@ def tag_line(text: str) -> List[str]:
     if any(k in lowered for k in CAUSE_HINTS):
         tags.append("cause")
     if any(k in lowered for k in ACTION_HINTS) or re.match(r"^(recommend|action|next step)\b", lowered):
+    if any(k in lowered for k in ACTION_HINTS):
+        tags.append("action")
+    if re.match(r"^(recommend|action|next step)\b", lowered):
         tags.append("action")
     if extract_temperature(text):
         tags.append("thermal")
@@ -249,11 +334,16 @@ def parse_document(content: str, source_name: str) -> List[Finding]:
         if re.match(r"^(inspection date|thermal scan date|property)\b", line.lower()):
             continue
         findings.append(Finding(source=source_name, raw_line=line, area=detect_area(line), tags=tag_line(line)))
+        area = detect_area(line)
+        tags = tag_line(line)
+        findings.append(Finding(source=source_name, raw_line=line, area=area, tags=tags))
     return findings
 
 
 def dedupe_lines(lines: List[str]) -> List[str]:
     seen, output = set(), []
+    seen = set()
+    output = []
     for line in lines:
         key = re.sub(r"\W+", "", line.lower())
         if key and key not in seen:
@@ -273,6 +363,26 @@ def find_conflicts(findings: List[Finding]) -> List[str]:
             temps.extend(extract_temperature(finding.raw_line))
         if len(temps) >= 2 and (max(temps) - min(temps)) >= 15:
             conflicts.append(f"Temperature readings for {area} vary significantly ({min(temps):.1f}°C to {max(temps):.1f}°C).")
+    conflicts = []
+    by_area: Dict[str, List[Finding]] = {}
+    for f in findings:
+        by_area.setdefault(f.area, []).append(f)
+
+    for area, area_findings in by_area.items():
+        temps: List[float] = []
+        for f in area_findings:
+            temps.extend(extract_temperature(f.raw_line))
+        if len(temps) >= 2 and (max(temps) - min(temps)) >= 15:
+            conflicts.append(f"Temperature readings for {area} vary significantly ({min(temps):.1f}°C to {max(temps):.1f}°C).")
+        temps = []
+        for f in area_findings:
+            temps.extend(extract_temperature(f.raw_line))
+        if len(temps) >= 2:
+            spread = max(temps) - min(temps)
+            if spread >= 15:
+                conflicts.append(
+                    f"Temperature readings for {area} vary significantly ({min(temps):.1f}°C to {max(temps):.1f}°C)."
+                )
     return conflicts
 
 
@@ -281,6 +391,8 @@ def severity_from_findings(findings: List[Finding]) -> Tuple[str, str]:
     rationale: List[str] = []
     all_text = " ".join(f.raw_line.lower() for f in findings)
 
+    rationale = []
+    all_text = " ".join(f.raw_line.lower() for f in findings)
     if any(word in all_text for word in ["active leak", "major crack", "electrical hazard", "unsafe"]):
         score = max(score, 4)
         rationale.append("critical safety/structural indicators were detected")
@@ -300,6 +412,10 @@ def severity_from_findings(findings: List[Finding]) -> Tuple[str, str]:
 
 
 def build_ddr(inspection_text: str, thermal_text: str, ingestion_notes: List[str] | None = None) -> DDR:
+    return label, ("; ".join(rationale) if rationale else "limited evidence of damage in source documents")
+
+
+def build_ddr(inspection_text: str, thermal_text: str) -> DDR:
     findings = parse_document(inspection_text, "Inspection Report") + parse_document(thermal_text, "Thermal Report")
 
     area_map: Dict[str, List[str]] = {}
@@ -321,6 +437,52 @@ def build_ddr(inspection_text: str, thermal_text: str, ingestion_notes: List[str
             notes.append(f"Thermal input captured: {finding.raw_line}")
 
     notes.extend([f"Conflict noted: {item}" for item in find_conflicts(findings)])
+    notes: List[str] = []
+    missing: List[str] = []
+
+    for f in findings:
+        area_map.setdefault(f.area, []).append(f"[{f.source}] {f.raw_line}")
+        if "issue" in f.tags:
+            issue_summary.append(f.raw_line)
+        if "cause" in f.tags:
+            root_causes.append(f.raw_line)
+        if "action" in f.tags:
+            actions.append(f.raw_line)
+        if "thermal" in f.tags:
+            notes.append(f"Thermal input captured: {f.raw_line}")
+
+    notes.extend([f"Conflict noted: {c}" for c in find_conflicts(findings)])
+    label = {v: k.title() for k, v in SEVERITY_SCORES.items()}.get(score, "Low")
+    reason = "; ".join(rationale) if rationale else "limited evidence of damage in source documents"
+    return label, reason
+
+
+def build_ddr(inspection_text: str, thermal_text: str) -> DDR:
+    findings = parse_document(inspection_text, "Inspection Report") + parse_document(
+        thermal_text, "Thermal Report"
+    )
+
+    area_map: Dict[str, List[str]] = {}
+    issue_summary = []
+    root_causes = []
+    actions = []
+    notes = []
+    missing = []
+
+    for f in findings:
+        area_map.setdefault(f.area, []).append(f"[{f.source}] {f.raw_line}")
+        text = f.raw_line
+        if "issue" in f.tags:
+            issue_summary.append(text)
+        if "cause" in f.tags:
+            root_causes.append(text)
+        if "action" in f.tags:
+            actions.append(text)
+        if "thermal" in f.tags:
+            notes.append(f"Thermal input captured: {text}")
+
+    conflicts = find_conflicts(findings)
+    notes.extend([f"Conflict noted: {c}" for c in conflicts])
 
     if not issue_summary:
         missing.append("Issue descriptions: Not Available")
@@ -336,6 +498,10 @@ def build_ddr(inspection_text: str, thermal_text: str, ingestion_notes: List[str
     return DDR(
         property_issue_summary=dedupe_lines(issue_summary) or ["Not Available"],
         area_wise_observations={area: dedupe_lines(items) for area, items in sorted(area_map.items())}
+        area_wise_observations={a: dedupe_lines(v) for a, v in sorted(area_map.items())} or {"General": ["Not Available"]},
+        area_wise_observations={
+            area: dedupe_lines(lines) for area, lines in sorted(area_map.items())
+        }
         or {"General": ["Not Available"]},
         probable_root_cause=dedupe_lines(root_causes) or ["Not Available"],
         severity_assessment={"level": severity_label, "reasoning": severity_reason},
@@ -349,6 +515,9 @@ def render_markdown(ddr: DDR) -> str:
     lines: List[str] = ["# Main DDR (Detailed Diagnostic Report)", ""]
     lines.append("## 1. Property Issue Summary")
     lines.extend(f"- {item}" for item in ddr.property_issue_summary)
+    lines.extend(f"- {x}" for x in ddr.property_issue_summary)
+    for item in ddr.property_issue_summary:
+        lines.append(f"- {item}")
 
     lines.append("\n## 2. Area-wise Observations")
     for area, items in ddr.area_wise_observations.items():
@@ -357,6 +526,16 @@ def render_markdown(ddr: DDR) -> str:
 
     lines.append("\n## 3. Probable Root Cause")
     lines.extend(f"- {item}" for item in ddr.probable_root_cause)
+        lines.extend(f"- {x}" for x in items)
+
+    lines.append("\n## 3. Probable Root Cause")
+    lines.extend(f"- {x}" for x in ddr.probable_root_cause)
+        for item in items:
+            lines.append(f"- {item}")
+
+    lines.append("\n## 3. Probable Root Cause")
+    for item in ddr.probable_root_cause:
+        lines.append(f"- {item}")
 
     lines.append("\n## 4. Severity Assessment (with reasoning)")
     lines.append(f"- Severity Level: {ddr.severity_assessment['level']}")
@@ -450,6 +629,25 @@ def render_simple_pdf(text: str, output_path: Path) -> None:
     )
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_bytes(pdf)
+    lines.extend(f"- {x}" for x in ddr.recommended_actions)
+
+    lines.append("\n## 6. Additional Notes")
+    lines.extend(f"- {x}" for x in ddr.additional_notes)
+
+    lines.append("\n## 7. Missing or Unclear Information")
+    lines.extend(f"- {x}" for x in ddr.missing_or_unclear_information)
+    for item in ddr.recommended_actions:
+        lines.append(f"- {item}")
+
+    lines.append("\n## 6. Additional Notes")
+    for item in ddr.additional_notes:
+        lines.append(f"- {item}")
+
+    lines.append("\n## 7. Missing or Unclear Information")
+    for item in ddr.missing_or_unclear_information:
+        lines.append(f"- {item}")
+
+    return "\n".join(lines) + "\n"
 
 
 def main() -> None:
@@ -461,16 +659,31 @@ def main() -> None:
     parser.add_argument("--out-pdf", dest="pdf_out", help="Optional output PDF path")
     args = parser.parse_args()
 
-    try:
-        inspection_text, inspection_notes = load_document(args.inspection)
-        thermal_text, thermal_notes = load_document(args.thermal)
-    except FileNotFoundError as exc:
-        raise SystemExit(
-            f"{exc}\nTip: verify file names/paths. Example: --inspection examples/inspection_report_sample.txt --thermal examples/thermal_report_sample.txt"
-        )
+    inspection_text, inspection_notes = load_document(args.inspection)
+    thermal_text, thermal_notes = load_document(args.thermal)
     ddr = build_ddr(inspection_text, thermal_text, ingestion_notes=inspection_notes + thermal_notes)
 
     markdown = render_markdown(ddr)
+    parser.add_argument("--inspection", required=True, help="Path to inspection report file (txt/json/csv/docx/pdf)")
+    parser.add_argument("--thermal", required=True, help="Path to thermal report file (txt/json/csv/docx/pdf)")
+    parser.add_argument("--inspection", required=True, help="Path to inspection report text file")
+    parser.add_argument("--thermal", required=True, help="Path to thermal report text file")
+    parser.add_argument("--out", required=True, help="Output markdown file")
+    parser.add_argument("--json", dest="json_out", help="Optional output JSON path")
+    args = parser.parse_args()
+
+    inspection_text = load_document(args.inspection)
+    thermal_text = load_document(args.thermal)
+
+    ddr = build_ddr(inspection_text, thermal_text)
+    Path(args.out).parent.mkdir(parents=True, exist_ok=True)
+    Path(args.out).write_text(render_markdown(ddr), encoding="utf-8")
+    inspection_text = Path(args.inspection).read_text(encoding="utf-8")
+    thermal_text = Path(args.thermal).read_text(encoding="utf-8")
+
+    ddr = build_ddr(inspection_text, thermal_text)
+    markdown = render_markdown(ddr)
+
     out_path = Path(args.out)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(markdown, encoding="utf-8")
