@@ -9,6 +9,8 @@
 python3 src/ddr_builder.py \
   --inspection <inspection_file> \
   --thermal <thermal_file> \
+  --inspection examples/inspection_report_sample.txt \
+  --thermal examples/thermal_report_sample.txt \
   --out output/main_ddr.md \
   --json output/main_ddr.json
 ```

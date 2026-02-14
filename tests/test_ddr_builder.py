@@ -5,6 +5,9 @@ import zipfile
 from pathlib import Path
 
 from src.ddr_builder import build_ddr, load_document, render_markdown
+import unittest
+
+from src.ddr_builder import build_ddr, render_markdown
 
 
 class TestDDRBuilder(unittest.TestCase):
@@ -43,6 +46,10 @@ class TestDDRBuilder(unittest.TestCase):
             with zipfile.ZipFile(docx, "w") as zf:
                 zf.writestr("word/document.xml", xml)
             self.assertIn("Bathroom wall moisture", load_document(str(docx)))
+
+        roof_items = ddr.area_wise_observations.get("Roof")
+        self.assertIsNotNone(roof_items)
+        self.assertEqual(len(ddr.property_issue_summary), 1)
 
 
 if __name__ == "__main__":
