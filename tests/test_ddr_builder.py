@@ -4,6 +4,7 @@ import unittest
 import zipfile
 from pathlib import Path
 
+from src.ddr_builder import build_ddr, load_document, render_markdown, render_simple_pdf
 from src.ddr_builder import build_ddr, load_document, render_markdown
 import unittest
 
@@ -31,6 +32,19 @@ class TestDDRBuilder(unittest.TestCase):
 
             txt = base / "inspection.txt"
             txt.write_text("Roof leak observed", encoding="utf-8")
+            text, notes = load_document(str(txt))
+            self.assertIn("Roof leak", text)
+            self.assertEqual(notes, [])
+
+            js = base / "thermal.json"
+            js.write_text(json.dumps({"temp": "34 C anomaly"}), encoding="utf-8")
+            text, _ = load_document(str(js))
+            self.assertIn("34 C anomaly", text)
+
+            csv_file = base / "obs.csv"
+            csv_file.write_text("area,observation\nroof,damp patch", encoding="utf-8")
+            text, _ = load_document(str(csv_file))
+            self.assertIn("damp patch", text)
             self.assertIn("Roof leak", load_document(str(txt)))
 
             js = base / "thermal.json"
@@ -45,6 +59,15 @@ class TestDDRBuilder(unittest.TestCase):
             xml = """<?xml version='1.0' encoding='UTF-8' standalone='yes'?><w:document xmlns:w='http://schemas.openxmlformats.org/wordprocessingml/2006/main'><w:body><w:p><w:r><w:t>Bathroom wall moisture found</w:t></w:r></w:p></w:body></w:document>"""
             with zipfile.ZipFile(docx, "w") as zf:
                 zf.writestr("word/document.xml", xml)
+            text, _ = load_document(str(docx))
+            self.assertIn("Bathroom wall moisture", text)
+
+    def test_render_simple_pdf(self):
+        with tempfile.TemporaryDirectory() as td:
+            out = Path(td) / "ddr.pdf"
+            render_simple_pdf("# Title\n- line", out)
+            data = out.read_bytes()
+            self.assertTrue(data.startswith(b"%PDF-1.4"))
             self.assertIn("Bathroom wall moisture", load_document(str(docx)))
 
         roof_items = ddr.area_wise_observations.get("Roof")

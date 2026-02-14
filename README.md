@@ -1,35 +1,26 @@
 # Applied AI Builder: DDR Report Generation
 
-This repository provides a **working AI workflow** that converts raw technical inputs into a structured **Main DDR (Detailed Diagnostic Report)**.
+This repository provides a working AI workflow that converts raw inspection + thermal evidence into a structured **Main DDR (Detailed Diagnostic Report)**.
 
-## Will it work with any file they provide?
-**Practical answer:** it works reliably for common report formats and gives best-effort parsing for unknown ones.
+## Does it work with all files, including PDF with thermal images?
+**Direct answer:**
+- It now supports most common report formats and generates structured output in **Markdown, JSON, and PDF**.
+- For **PDFs that contain images/scans**, extraction quality depends on OCR availability.
 
-### Supported input formats
+### Supported inputs
 - `.txt`, `.md`, `.log`
 - `.json`
 - `.csv`, `.tsv`
-- `.docx` (native XML extraction, no external package required)
-- `.pdf` (best-effort text extraction for text-based PDFs)
+- `.docx`
+- `.pdf` (text extraction + optional OCR path)
+- image files (`.png`, `.jpg`, `.jpeg`, `.tif`, `.tiff`, `.bmp`) via optional OCR
 
-### Important limitation
-- Scanned/image-only PDFs (no embedded text) cannot be perfectly parsed without OCR.
-- For missing or unreadable data, output explicitly marks fields as **Not Available** (as required).
-This repository provides a **working AI workflow** that converts two raw technical inputs:
-- inspection observations
-- thermal scan findings
+### PDF + thermal image handling
+- If optional libraries are present (`fitz` + `Pillow` + `pytesseract`), embedded image OCR is used.
+- If those libraries are missing, parser runs in fallback mode and records this limitation in **Additional Notes**.
+- Missing/unreadable info is explicitly reported as `Not Available`.
 
-into a structured **Main DDR (Detailed Diagnostic Report)**.
-
-## What this solves
-The pipeline is designed for imperfect real-world reports:
-- extracts usable observations from both documents
-- merges overlapping points and de-duplicates repeated findings
-- flags conflicting data (e.g., large thermal variance in same area)
-- explicitly marks missing items as **Not Available**
-- outputs a client-friendly report with a fixed structure
-
-## DDR output structure
+## DDR output sections
 1. Property Issue Summary
 2. Area-wise Observations
 3. Probable Root Cause
@@ -60,7 +51,8 @@ python3 src/ddr_builder.py \
   --inspection examples/inspection_report_sample.txt \
   --thermal examples/thermal_report_sample.txt \
   --out output/main_ddr.md \
-  --json output/main_ddr.json
+  --json output/main_ddr.json \
+  --out-pdf output/main_ddr.pdf
 ```
 
 ## Deliverables in this repo
