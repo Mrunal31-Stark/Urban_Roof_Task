@@ -1,0 +1,6 @@
+Thermal Scan Date: 03-Feb-2026
+Area: Roof terrace north edge recorded 38.6 C hotspot at 11:00 AM.
+Area: Bedroom ceiling recorded 24.1 C cooler patch below terrace slab.
+Area: Bathroom wet wall recorded 27.8 C with irregular thermal anomaly.
+Thermal interpretation suggests trapped moisture in slab and wall interface.
+Recommend moisture meter validation and post-repair thermal retest.
