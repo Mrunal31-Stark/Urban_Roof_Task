@@ -3,185 +3,100 @@
 << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
 endobj
 2 0 obj
-<< /Length 4533 >>
+<< /Length 2880 >>
 stream
 BT
-0.090 0.330 0.620 rg
-/F1 17 Tf
-1 0 0 1 42 777 Tm
-(Main DDR \(Detailed Diagnostic Report\)) Tj
-0.100 0.100 0.100 rg
 /F1 10 Tf
-1 0 0 1 42 761 Tm
+1 0 0 1 50 792 Tm
+0 -14 Td
+(# Main DDR \(Detailed Diagnostic Report\)) Tj
+0 -14 Td
 () Tj
-0.120 0.450 0.780 rg
-/F1 13 Tf
-1 0 0 1 42 742 Tm
-(1. Property Issue Summary) Tj
-0.100 0.100 0.100 rg
-/F1 10 Tf
-1 0 0 1 42 726 Tm
-( Roof terrace shows damp patches near the north parapet and visible seepage marks.) Tj
-0.100 0.100 0.100 rg
-/F1 10 Tf
-1 0 0 1 42 710 Tm
-( Ceiling in bedroom has water stains and minor paint blistering.) Tj
-0.100 0.100 0.100 rg
-/F1 10 Tf
-1 0 0 1 42 694 Tm
-( Bathroom wall has mold growth behind the shower mixer.) Tj
-0.100 0.100 0.100 rg
-/F1 10 Tf
-1 0 0 1 42 678 Tm
-( Thermal interpretation suggests trapped moisture in slab and wall interface.) Tj
-0.100 0.100 0.100 rg
-/F1 10 Tf
-1 0 0 1 42 662 Tm
+0 -14 Td
+(## 1. Property Issue Summary) Tj
+0 -14 Td
+(- Roof terrace shows damp patches near the north parapet and visible seepage marks.) Tj
+0 -14 Td
+(- Ceiling in bedroom has water stains and minor paint blistering.) Tj
+0 -14 Td
+(- Bathroom wall has mold growth behind the shower mixer.) Tj
+0 -14 Td
+(- Thermal interpretation suggests trapped moisture in slab and wall interface.) Tj
+0 -14 Td
 () Tj
-0.120 0.450 0.780 rg
-/F1 13 Tf
-1 0 0 1 42 643 Tm
-(2. Area-wise Observations) Tj
-0.210 0.500 0.330 rg
-/F1 11 Tf
-1 0 0 1 42 626 Tm
-(Ceiling) Tj
-0.100 0.100 0.100 rg
-/F1 10 Tf
-1 0 0 1 42 610 Tm
-( [Inspection Report] Ceiling in bedroom has water stains and minor paint blistering.) Tj
-0.210 0.500 0.330 rg
-/F1 11 Tf
-1 0 0 1 42 593 Tm
-(General) Tj
-0.100 0.100 0.100 rg
-/F1 10 Tf
-1 0 0 1 42 577 Tm
-( [Inspection Report] No structural crack observed in internal columns.) Tj
-0.100 0.100 0.100 rg
-/F1 10 Tf
-1 0 0 1 42 561 Tm
-( [Thermal Report] Recommend moisture meter validation and post-repair thermal retest.) Tj
-0.210 0.500 0.330 rg
-/F1 11 Tf
-1 0 0 1 42 544 Tm
-(Roof) Tj
-0.100 0.100 0.100 rg
-/F1 10 Tf
-1 0 0 1 42 528 Tm
-( [Inspection Report] Roof terrace shows damp patches near the north parapet and visible seepage marks.) Tj
-0.100 0.100 0.100 rg
-/F1 10 Tf
-1 0 0 1 42 512 Tm
-( [Inspection Report] Possible cause: rainwater entering through failed terrace waterproofing joints.) Tj
-0.100 0.100 0.100 rg
-/F1 10 Tf
-1 0 0 1 42 496 Tm
-( [Thermal Report] Area: Roof terrace north edge recorded 38.6 C hotspot at 11:00 AM.) Tj
-0.210 0.500 0.330 rg
-/F1 11 Tf
-1 0 0 1 42 479 Tm
-(Terrace) Tj
-0.100 0.100 0.100 rg
-/F1 10 Tf
-1 0 0 1 42 463 Tm
-( [Inspection Report] Recommend re-sealing terrace joints and checking drainage slope.) Tj
-0.100 0.100 0.100 rg
-/F1 10 Tf
-1 0 0 1 42 447 Tm
-( [Thermal Report] Area: Bedroom ceiling recorded 24.1 C cooler patch below terrace slab.) Tj
-0.210 0.500 0.330 rg
-/F1 11 Tf
-1 0 0 1 42 430 Tm
-(Wall) Tj
-0.100 0.100 0.100 rg
-/F1 10 Tf
-1 0 0 1 42 414 Tm
-( [Inspection Report] Bathroom wall has mold growth behind the shower mixer.) Tj
-0.100 0.100 0.100 rg
-/F1 10 Tf
-1 0 0 1 42 398 Tm
-( [Thermal Report] Area: Bathroom wet wall recorded 27.8 C with irregular thermal anomaly.) Tj
-0.100 0.100 0.100 rg
-/F1 10 Tf
-1 0 0 1 42 382 Tm
-( [Thermal Report] Thermal interpretation suggests trapped moisture in slab and wall interface.) Tj
-0.100 0.100 0.100 rg
-/F1 10 Tf
-1 0 0 1 42 366 Tm
+0 -14 Td
+(## 2. Area-wise Observations) Tj
+0 -14 Td
+(### Ceiling) Tj
+0 -14 Td
+(- [Inspection Report] Ceiling in bedroom has water stains and minor paint blistering.) Tj
+0 -14 Td
+(### General) Tj
+0 -14 Td
+(- [Inspection Report] No structural crack observed in internal columns.) Tj
+0 -14 Td
+(- [Thermal Report] Recommend moisture meter validation and post-repair thermal retest.) Tj
+0 -14 Td
+(### Roof) Tj
+0 -14 Td
+(- [Inspection Report] Roof terrace shows damp patches near the north parapet and visible seepage marks.) Tj
+0 -14 Td
+(- [Inspection Report] Possible cause: rainwater entering through failed terrace waterproofing joints.) Tj
+0 -14 Td
+(- [Thermal Report] Area: Roof terrace north edge recorded 38.6 C hotspot at 11:00 AM.) Tj
+0 -14 Td
+(### Terrace) Tj
+0 -14 Td
+(- [Inspection Report] Recommend re-sealing terrace joints and checking drainage slope.) Tj
+0 -14 Td
+(- [Thermal Report] Area: Bedroom ceiling recorded 24.1 C cooler patch below terrace slab.) Tj
+0 -14 Td
+(### Wall) Tj
+0 -14 Td
+(- [Inspection Report] Bathroom wall has mold growth behind the shower mixer.) Tj
+0 -14 Td
+(- [Thermal Report] Area: Bathroom wet wall recorded 27.8 C with irregular thermal anomaly.) Tj
+0 -14 Td
+(- [Thermal Report] Thermal interpretation suggests trapped moisture in slab and wall interface.) Tj
+0 -14 Td
 () Tj
-0.120 0.450 0.780 rg
-/F1 13 Tf
-1 0 0 1 42 347 Tm
-(3. Probable Root Cause) Tj
-0.100 0.100 0.100 rg
-/F1 10 Tf
-1 0 0 1 42 331 Tm
-( Possible cause: rainwater entering through failed terrace waterproofing joints.) Tj
-0.100 0.100 0.100 rg
-/F1 10 Tf
-1 0 0 1 42 315 Tm
+0 -14 Td
+(## 3. Probable Root Cause) Tj
+0 -14 Td
+(- Possible cause: rainwater entering through failed terrace waterproofing joints.) Tj
+0 -14 Td
 () Tj
-0.120 0.450 0.780 rg
-/F1 13 Tf
-1 0 0 1 42 296 Tm
-(4. Severity Assessment \(with reasoning\)) Tj
-0.100 0.100 0.100 rg
-/F1 10 Tf
-1 0 0 1 42 280 Tm
-( Severity Level: High) Tj
-0.100 0.100 0.100 rg
-/F1 10 Tf
-1 0 0 1 42 264 Tm
-( Reasoning: water ingress indicators are present; moisture/thermal anomalies were identified) Tj
-0.100 0.100 0.100 rg
-/F1 10 Tf
-1 0 0 1 42 248 Tm
+0 -14 Td
+(## 4. Severity Assessment \(with reasoning\)) Tj
+0 -14 Td
+(- Severity Level: High) Tj
+0 -14 Td
+(- Reasoning: water ingress indicators are present; moisture/thermal anomalies were identified) Tj
+0 -14 Td
 () Tj
-0.120 0.450 0.780 rg
-/F1 13 Tf
-1 0 0 1 42 229 Tm
-(5. Recommended Actions) Tj
-0.100 0.100 0.100 rg
-/F1 10 Tf
-1 0 0 1 42 213 Tm
-( Recommend re-sealing terrace joints and checking drainage slope.) Tj
-0.100 0.100 0.100 rg
-/F1 10 Tf
-1 0 0 1 42 197 Tm
-( Recommend moisture meter validation and post-repair thermal retest.) Tj
-0.100 0.100 0.100 rg
-/F1 10 Tf
-1 0 0 1 42 181 Tm
+0 -14 Td
+(## 5. Recommended Actions) Tj
+0 -14 Td
+(- Recommend re-sealing terrace joints and checking drainage slope.) Tj
+0 -14 Td
+(- Recommend moisture meter validation and post-repair thermal retest.) Tj
+0 -14 Td
 () Tj
-0.120 0.450 0.780 rg
-/F1 13 Tf
-1 0 0 1 42 162 Tm
-(6. Additional Notes) Tj
-0.100 0.100 0.100 rg
-/F1 10 Tf
-1 0 0 1 42 146 Tm
-( Thermal input captured: Area: Roof terrace north edge recorded 38.6 C hotspot at 11:00 AM.) Tj
-0.100 0.100 0.100 rg
-/F1 10 Tf
-1 0 0 1 42 130 Tm
-( Thermal input captured: Area: Bedroom ceiling recorded 24.1 C cooler patch below terrace slab.) Tj
-0.100 0.100 0.100 rg
-/F1 10 Tf
-1 0 0 1 42 114 Tm
-( Thermal input captured: Area: Bathroom wet wall recorded 27.8 C with irregular thermal anomaly.) Tj
-0.100 0.100 0.100 rg
-/F1 10 Tf
-1 0 0 1 42 98 Tm
+0 -14 Td
+(## 6. Additional Notes) Tj
+0 -14 Td
+(- Thermal input captured: Area: Roof terrace north edge recorded 38.6 C hotspot at 11:00 AM.) Tj
+0 -14 Td
+(- Thermal input captured: Area: Bedroom ceiling recorded 24.1 C cooler patch below terrace slab.) Tj
+0 -14 Td
+(- Thermal input captured: Area: Bathroom wet wall recorded 27.8 C with irregular thermal anomaly.) Tj
+0 -14 Td
 () Tj
-0.120 0.450 0.780 rg
-/F1 13 Tf
-1 0 0 1 42 79 Tm
-(7. Missing or Unclear Information) Tj
-0.100 0.100 0.100 rg
-/F1 10 Tf
-1 0 0 1 42 63 Tm
-( Not Available) Tj
+0 -14 Td
+(## 7. Missing or Unclear Information) Tj
+0 -14 Td
+(- Not Available) Tj
+0 -14 Td
 ET
 endstream
 endobj
@@ -199,11 +114,11 @@ xref
 0000000000 65535 f 
 0000000009 00000 n 
 0000000079 00000 n 
-0000004664 00000 n 
-0000004790 00000 n 
-0000004849 00000 n 
+0000003011 00000 n 
+0000003137 00000 n 
+0000003196 00000 n 
 trailer
 << /Size 6 /Root 5 0 R >>
 startxref
-4898
+3245
 %%EOF
