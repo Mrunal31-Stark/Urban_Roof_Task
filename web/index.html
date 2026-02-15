@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DDR AI Builder</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <div class="bg-dots"></div>
+  <main class="container">
+    <section class="card hero">
+      <h1>DDR Applied AI Builder</h1>
+      <p>Upload inspection and thermal evidence, inspect processing stages, review conflicts, and export report artifacts.</p>
+    </section>
+
+    <section class="card">
+      <h2>Upload Dashboard</h2>
+      <form id="uploadForm">
+        <div class="grid-2">
+          <label class="input-card">
+            <span>Inspection Report</span>
+            <input type="file" name="inspection" required />
+          </label>
+          <label class="input-card">
+            <span>Thermal Report</span>
+            <input type="file" name="thermal" required />
+          </label>
+        </div>
+        <button type="submit">Generate DDR</button>
+      </form>
+    </section>
+
+    <section class="card">
+      <h2>Processing</h2>
+      <div id="pipeline" class="pipeline"></div>
+      <div id="message" class="message"></div>
+    </section>
+
+    <section id="report" class="card hidden">
+      <h2>DDR Output</h2>
+      <div class="actions">
+        <a id="jsonDownload" class="btn-secondary" href="#">Download JSON</a>
+        <a id="pdfDownload" class="btn-secondary" href="#">Download PDF</a>
+      </div>
+      <div id="summary"></div>
+      <div id="severity"></div>
+      <div id="conflicts"></div>
+      <div id="areas"></div>
+      <div id="missing"></div>
+      <div id="history"></div>
+    </section>
+  </main>
+  <script src="/app.js"></script>
+</body>
+</html>
