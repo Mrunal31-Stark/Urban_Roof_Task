@@ -8,9 +8,6 @@
 - Thermal interpretation suggests trapped moisture in slab and wall interface.
 - Recommend moisture meter validation and post-repair thermal retest.
 
-## 2. Introduction
-This report consolidates inspection and thermal findings for 5 area(s). Current overall severity is High.
-
 ## 3. Area-wise Observations
 ### Ceiling
 - [Inspection Report] Ceiling in bedroom has water stains and minor paint blistering.
@@ -41,6 +38,7 @@ This report consolidates inspection and thermal findings for 5 area(s). Current 
 - Recommend moisture meter validation and post-repair thermal retest.
 
 ## 7. Additional Notes
+## 6. Additional Notes
 - Moisture observed in Roof while thermal values include normal range readings.
 - Moisture observed in Wall while thermal values include normal range readings.
 

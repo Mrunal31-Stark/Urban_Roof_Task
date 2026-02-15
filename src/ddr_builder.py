@@ -372,8 +372,7 @@ def build_ddr(inspection_text: str, thermal_text: str, ingestion_notes: List[str
         if "action" in finding.tags:
             actions.append(finding.raw_line)
 
-    conflicts = _find_conflicts(findings)
-    notes.extend(conflicts)
+    notes.extend(_find_conflicts(findings))
 
     if not any(temp for finding in findings for temp in finding.temperatures_c):
         missing.append("Temperature readings: Not Available")
@@ -394,23 +393,6 @@ def build_ddr(inspection_text: str, thermal_text: str, ingestion_notes: List[str
         recommended_actions=_dedupe_lines(actions) or ["Not Available"],
         additional_notes=_dedupe_lines(notes) or ["Not Available"],
         missing_or_unclear_information=_dedupe_lines(missing) or ["Not Available"],
-        conflicts_detected=_dedupe_lines(conflicts) or ["Not Available"],
-    )
-
-
-def _safe_list(items: List[str]) -> List[str]:
-    clean = [item for item in items if item and item.strip()]
-    return clean or ["Not Available"]
-
-
-def _introduction_text(ddr: DDR) -> str:
-    total_areas = len([a for a, vals in ddr.area_wise_observations.items() if vals and vals != ["Not Available"]])
-    severity = ddr.severity_assessment.get("level", "Not Available")
-    if total_areas == 0:
-        return "Not Available"
-    return (
-        f"This report consolidates inspection and thermal findings for {total_areas} area(s). "
-        f"Current overall severity is {severity}."
     )
 
 
@@ -418,25 +400,13 @@ def render_markdown(ddr: DDR) -> str:
     lines: List[str] = ["# Main DDR (Detailed Diagnostic Report)", ""]
 
     lines.append("## 1. Property Issue Summary")
-    lines.extend(f"- {item}" for item in _safe_list(ddr.property_issue_summary))
+    lines.extend(f"- {item}" for item in ddr.property_issue_summary)
 
     lines.append("\n## 2. Introduction")
     lines.append(_introduction_text(ddr))
 
-    lines.append("\n## 3. Area-wise Observations")
-    if not ddr.area_wise_observations:
-        lines.append("Not Available")
-    else:
-        for area, items in ddr.area_wise_observations.items():
-            lines.append(f"### {area}")
-            lines.extend(f"- {item}" for item in _safe_list(items))
-
-    lines.append("\n## 4. Probable Root Cause")
-    lines.extend(f"- {item}" for item in _safe_list(ddr.probable_root_cause))
-
-    lines.append("\n## 5. Severity Assessment (with reasoning)")
-    lines.append(f"- Severity Level: {ddr.severity_assessment.get('level', 'Not Available')}")
-    lines.append(f"- Reasoning: {ddr.severity_assessment.get('reasoning', 'Not Available')}")
+    lines.append("\n## 3. Probable Root Cause")
+    lines.extend(f"- {item}" for item in ddr.probable_root_cause)
 
     lines.append("\n## 6. Recommended Actions")
     lines.extend(f"- {item}" for item in _safe_list(ddr.recommended_actions))
@@ -557,22 +527,16 @@ def main() -> None:
     parser.add_argument("--out-pdf", dest="pdf_out", help="Optional output PDF path")
     args = parser.parse_args()
 
-    if args.from_json:
-        markdown = render_report_from_ddr_json(Path(args.from_json).read_text(encoding="utf-8"))
-        ddr = None
-    else:
-        if not args.inspection or not args.thermal:
-            raise ValueError("--inspection and --thermal are required unless --from-json is provided")
-        inspection_text, inspection_notes = load_document(args.inspection)
-        thermal_text, thermal_notes = load_document(args.thermal)
-        ddr = build_ddr(inspection_text, thermal_text, ingestion_notes=inspection_notes + thermal_notes)
-        markdown = render_markdown(ddr)
+    inspection_text, inspection_notes = load_document(args.inspection)
+    thermal_text, thermal_notes = load_document(args.thermal)
+    ddr = build_ddr(inspection_text, thermal_text, ingestion_notes=inspection_notes + thermal_notes)
+    markdown = render_markdown(ddr)
 
     out = Path(args.out)
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(markdown, encoding="utf-8")
 
-    if args.json_out and ddr is not None:
+    if args.json_out:
         Path(args.json_out).write_text(json.dumps(asdict(ddr), indent=2), encoding="utf-8")
     if args.pdf_out:
         render_simple_pdf(markdown, Path(args.pdf_out))

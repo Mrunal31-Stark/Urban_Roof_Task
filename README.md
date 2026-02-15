@@ -56,13 +56,3 @@ python3 src/ddr_builder.py \
 ```bash
 pytest -q
 ```
-
-## JSON to professional report conversion
-
-You can convert an existing DDR JSON into the required professional heading format:
-
-```bash
-python3 src/ddr_builder.py \
-  --from-json output/main_ddr.json \
-  --out output/main_ddr_from_json.md
-```

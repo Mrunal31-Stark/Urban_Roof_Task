@@ -4,7 +4,7 @@ import unittest
 import zipfile
 from pathlib import Path
 
-from src.ddr_builder import build_ddr, load_document, render_markdown, render_report_from_ddr_json, render_simple_pdf
+from src.ddr_builder import build_ddr, load_document, render_markdown, render_simple_pdf
 
 
 class TestDDRBuilder(unittest.TestCase):
@@ -26,7 +26,8 @@ class TestDDRBuilder(unittest.TestCase):
         inspection = "Roof area no damage observed.\nRoof area moisture near flashing."
         thermal = "Roof hotspot recorded at 78 C."
         ddr = build_ddr(inspection, thermal)
-        self.assertIn("hotspot >= 70", "\n".join(ddr.conflicts_detected))
+        notes = "\n".join(ddr.additional_notes)
+        self.assertIn("hotspot >= 70", notes)
         self.assertEqual(ddr.severity_assessment["level"], "High")
 
     def test_load_document_multiple_formats(self):
