@@ -1,0 +1,64 @@
+:root {
+  --bg: #0f172a;
+  --card: #111827;
+  --muted: #9ca3af;
+  --text: #e5e7eb;
+  --accent: #2563eb;
+  --accent-2: #0ea5e9;
+  --danger: #ef4444;
+  --ok: #16a34a;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font-family: Inter, Segoe UI, Roboto, Arial, sans-serif;
+  color: var(--text);
+  background: linear-gradient(140deg, #0b1223, #0f172a);
+}
+.bg-dots {
+  position: fixed; inset: 0;
+  background-image: radial-gradient(rgba(148,163,184,0.2) 1px, transparent 1px);
+  background-size: 22px 22px;
+  pointer-events: none;
+}
+.container { max-width: 980px; margin: 32px auto; padding: 0 16px 40px; position: relative; z-index: 1; }
+.card {
+  background: rgba(17, 24, 39, 0.94);
+  border: 1px solid rgba(51, 65, 85, 0.8);
+  border-radius: 20px;
+  padding: 20px;
+  margin-bottom: 18px;
+  box-shadow: 0 18px 45px rgba(2, 6, 23, 0.45);
+}
+.hero h1 { margin: 0 0 8px; }
+.hero p, .message { color: var(--muted); }
+h2 { margin-top: 0; }
+.grid-2 { display: grid; gap: 14px; grid-template-columns: repeat(2, minmax(0,1fr)); }
+.input-card {
+  display: flex; flex-direction: column; gap: 8px;
+  border: 1px dashed #334155; border-radius: 16px; padding: 12px;
+  background: #0b1220;
+}
+input[type="file"] { color: var(--muted); }
+button, .btn-secondary {
+  margin-top: 14px;
+  background: linear-gradient(90deg, var(--accent), var(--accent-2));
+  color: white; border: none; border-radius: 12px; padding: 10px 14px;
+  font-weight: 600; cursor: pointer; text-decoration: none; display: inline-block;
+}
+.btn-secondary { margin-right: 8px; }
+.pipeline { display: grid; gap: 8px; }
+.step {
+  border: 1px solid #334155; border-radius: 12px; padding: 10px 12px; color: var(--muted);
+}
+.step.active { border-color: var(--accent-2); color: #bae6fd; background: rgba(14, 165, 233, 0.12); }
+.step.done { border-color: var(--ok); color: #bbf7d0; background: rgba(22, 163, 74, 0.15); }
+.badge { display: inline-block; border-radius: 999px; padding: 3px 10px; font-size: 12px; }
+.badge-high { background: rgba(239,68,68,0.15); color: #fecaca; border: 1px solid rgba(239,68,68,0.5); }
+.badge-medium { background: rgba(245,158,11,0.15); color: #fde68a; border: 1px solid rgba(245,158,11,0.5); }
+.badge-low { background: rgba(34,197,94,0.15); color: #bbf7d0; border: 1px solid rgba(34,197,94,0.5); }
+.conflict { border-left: 3px solid var(--danger); padding-left: 10px; color: #fecaca; }
+.accordion summary { cursor: pointer; font-weight: 600; padding: 8px 0; }
+.hidden { display: none; }
+.small { color: var(--muted); font-size: 13px; }
+@media (max-width: 760px) { .grid-2 { grid-template-columns: 1fr; } }
