@@ -29,7 +29,7 @@ BT
 0 -14 Td
 () Tj
 0 -14 Td
-(## 2. Area-wise Observations) Tj
+(## 3. Area-wise Observations) Tj
 0 -14 Td
 (### Ceiling) Tj
 0 -14 Td
@@ -65,13 +65,13 @@ BT
 0 -14 Td
 () Tj
 0 -14 Td
-(## 3. Probable Root Cause) Tj
+(## 4. Probable Root Cause) Tj
 0 -14 Td
 (- Possible cause: rainwater entering through failed terrace waterproofing joints.) Tj
 0 -14 Td
 () Tj
 0 -14 Td
-(## 4. Severity Assessment \(with reasoning\)) Tj
+(## 5. Severity Assessment \(with reasoning\)) Tj
 0 -14 Td
 (- Severity Level: High) Tj
 0 -14 Td
@@ -79,7 +79,7 @@ BT
 0 -14 Td
 () Tj
 0 -14 Td
-(## 5. Recommended Actions) Tj
+(## 6. Recommended Actions) Tj
 0 -14 Td
 (- Recommend re-sealing terrace joints and checking drainage slope.) Tj
 0 -14 Td
@@ -87,7 +87,7 @@ BT
 0 -14 Td
 () Tj
 0 -14 Td
-(## 6. Additional Notes) Tj
+(## 7. Additional Notes) Tj
 0 -14 Td
 (- Moisture observed in Roof while thermal values include normal range readings.) Tj
 0 -14 Td
@@ -95,9 +95,17 @@ BT
 0 -14 Td
 () Tj
 0 -14 Td
-(## 7. Missing or Unclear Information) Tj
+(## 8. Missing or Unclear Information) Tj
 0 -14 Td
 (- Not Available) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(## 9. Conflicts Detected) Tj
+0 -14 Td
+(- Moisture observed in Roof while thermal values include normal range readings.) Tj
+0 -14 Td
+(- Moisture observed in Wall while thermal values include normal range readings.) Tj
 0 -14 Td
 ET
 endstream

@@ -12,7 +12,14 @@ class TestDDRBuilder(unittest.TestCase):
         ddr = build_ddr("", "")
         md = render_markdown(ddr)
         self.assertIn("## 1. Property Issue Summary", md)
-        self.assertIn("## 7. Missing or Unclear Information", md)
+        self.assertIn("## 2. Introduction", md)
+        self.assertIn("## 3. Area-wise Observations", md)
+        self.assertIn("## 4. Probable Root Cause", md)
+        self.assertIn("## 5. Severity Assessment (with reasoning)", md)
+        self.assertIn("## 6. Recommended Actions", md)
+        self.assertIn("## 7. Additional Notes", md)
+        self.assertIn("## 8. Missing or Unclear Information", md)
+        self.assertIn("## 9. Conflicts Detected", md)
         self.assertIn("Not Available", md)
 
     def test_merge_and_conflict_detection(self):
@@ -49,6 +56,22 @@ class TestDDRBuilder(unittest.TestCase):
                 zf.writestr("word/document.xml", xml)
             text, _ = load_document(str(docx))
             self.assertIn("Bathroom wall moisture", text)
+
+    def test_render_from_ddr_json_uses_required_format(self):
+        payload = {
+            "property_issue_summary": ["Roof dampness observed."],
+            "area_wise_observations": {"Roof": ["[Inspection Report] Roof dampness observed."]},
+            "probable_root_cause": ["Possible cause: failed joint seal."],
+            "severity_assessment": {"level": "Medium", "reasoning": "Moisture anomaly present."},
+            "recommended_actions": ["Recommend re-sealing joints."],
+            "additional_notes": ["Thermal scan captured."],
+            "missing_or_unclear_information": ["Ambient temperature: Not Available"],
+            "conflicts": ["Not Available"],
+        }
+        md = render_report_from_ddr_json(json.dumps(payload))
+        self.assertIn("## 2. Introduction", md)
+        self.assertIn("## 9. Conflicts Detected", md)
+        self.assertIn("- Severity Level: Medium", md)
 
     def test_render_simple_pdf(self):
         with tempfile.TemporaryDirectory() as td:

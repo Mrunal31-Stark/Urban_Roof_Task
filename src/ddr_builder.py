@@ -68,6 +68,7 @@ class DDR:
     recommended_actions: List[str]
     additional_notes: List[str]
     missing_or_unclear_information: List[str]
+    conflicts_detected: List[str]
 
 
 def _module_exists(name: str) -> bool:
@@ -397,30 +398,44 @@ def build_ddr(inspection_text: str, thermal_text: str, ingestion_notes: List[str
 
 def render_markdown(ddr: DDR) -> str:
     lines: List[str] = ["# Main DDR (Detailed Diagnostic Report)", ""]
+
     lines.append("## 1. Property Issue Summary")
     lines.extend(f"- {item}" for item in ddr.property_issue_summary)
 
-    lines.append("\n## 2. Area-wise Observations")
-    for area, items in ddr.area_wise_observations.items():
-        lines.append(f"### {area}")
-        lines.extend(f"- {item}" for item in items)
+    lines.append("\n## 2. Introduction")
+    lines.append(_introduction_text(ddr))
 
     lines.append("\n## 3. Probable Root Cause")
     lines.extend(f"- {item}" for item in ddr.probable_root_cause)
 
-    lines.append("\n## 4. Severity Assessment (with reasoning)")
-    lines.append(f"- Severity Level: {ddr.severity_assessment['level']}")
-    lines.append(f"- Reasoning: {ddr.severity_assessment['reasoning']}")
+    lines.append("\n## 6. Recommended Actions")
+    lines.extend(f"- {item}" for item in _safe_list(ddr.recommended_actions))
 
-    lines.append("\n## 5. Recommended Actions")
-    lines.extend(f"- {item}" for item in ddr.recommended_actions)
+    lines.append("\n## 7. Additional Notes")
+    lines.extend(f"- {item}" for item in _safe_list(ddr.additional_notes))
 
-    lines.append("\n## 6. Additional Notes")
-    lines.extend(f"- {item}" for item in ddr.additional_notes)
+    lines.append("\n## 8. Missing or Unclear Information")
+    lines.extend(f"- {item}" for item in _safe_list(ddr.missing_or_unclear_information))
 
-    lines.append("\n## 7. Missing or Unclear Information")
-    lines.extend(f"- {item}" for item in ddr.missing_or_unclear_information)
+    lines.append("\n## 9. Conflicts Detected")
+    lines.extend(f"- {item}" for item in _safe_list(ddr.conflicts_detected))
+
     return "\n".join(lines) + "\n"
+
+
+def render_report_from_ddr_json(ddr_json: str) -> str:
+    payload = json.loads(ddr_json)
+    ddr = DDR(
+        property_issue_summary=payload.get("property_issue_summary", []) or ["Not Available"],
+        area_wise_observations=payload.get("area_wise_observations", {}) or {"General": ["Not Available"]},
+        probable_root_cause=payload.get("probable_root_cause", []) or ["Not Available"],
+        severity_assessment=payload.get("severity_assessment", {"level": "Not Available", "reasoning": "Not Available"}),
+        recommended_actions=payload.get("recommended_actions", []) or ["Not Available"],
+        additional_notes=payload.get("additional_notes", []) or ["Not Available"],
+        missing_or_unclear_information=payload.get("missing_or_unclear_information", []) or ["Not Available"],
+        conflicts_detected=payload.get("conflicts_detected", payload.get("conflicts", [])) or ["Not Available"],
+    )
+    return render_markdown(ddr)
 
 
 def _pdf_escape(text: str) -> str:
@@ -504,8 +519,9 @@ def render_simple_pdf(text: str, output_path: Path) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Generate DDR from inspection and thermal reports")
-    parser.add_argument("--inspection", required=True, help="Path to inspection report")
-    parser.add_argument("--thermal", required=True, help="Path to thermal report")
+    parser.add_argument("--inspection", help="Path to inspection report")
+    parser.add_argument("--thermal", help="Path to thermal report")
+    parser.add_argument("--from-json", dest="from_json", help="Path to DDR JSON input for report-only rendering")
     parser.add_argument("--out", required=True, help="Output markdown path")
     parser.add_argument("--json", dest="json_out", help="Optional output JSON path")
     parser.add_argument("--out-pdf", dest="pdf_out", help="Optional output PDF path")

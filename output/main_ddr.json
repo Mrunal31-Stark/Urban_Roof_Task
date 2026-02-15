@@ -47,5 +47,9 @@
   ],
   "missing_or_unclear_information": [
     "Not Available"
+  ],
+  "conflicts_detected": [
+    "Moisture observed in Roof while thermal values include normal range readings.",
+    "Moisture observed in Wall while thermal values include normal range readings."
   ]
 }
