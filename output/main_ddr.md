@@ -4,7 +4,9 @@
 - Roof terrace shows damp patches near the north parapet and visible seepage marks.
 - Ceiling in bedroom has water stains and minor paint blistering.
 - Bathroom wall has mold growth behind the shower mixer.
+- Area: Roof terrace north edge recorded 38.6 C hotspot at 11:00 AM.
 - Thermal interpretation suggests trapped moisture in slab and wall interface.
+- Recommend moisture meter validation and post-repair thermal retest.
 
 ## 2. Area-wise Observations
 ### Ceiling
@@ -29,16 +31,15 @@
 
 ## 4. Severity Assessment (with reasoning)
 - Severity Level: High
-- Reasoning: water ingress indicators are present; moisture/thermal anomalies were identified
+- Reasoning: Structural crack appears with moisture indicators; escalation advised.
 
 ## 5. Recommended Actions
 - Recommend re-sealing terrace joints and checking drainage slope.
 - Recommend moisture meter validation and post-repair thermal retest.
 
 ## 6. Additional Notes
-- Thermal input captured: Area: Roof terrace north edge recorded 38.6 C hotspot at 11:00 AM.
-- Thermal input captured: Area: Bedroom ceiling recorded 24.1 C cooler patch below terrace slab.
-- Thermal input captured: Area: Bathroom wet wall recorded 27.8 C with irregular thermal anomaly.
+- Moisture observed in Roof while thermal values include normal range readings.
+- Moisture observed in Wall while thermal values include normal range readings.
 
 ## 7. Missing or Unclear Information
 - Not Available
