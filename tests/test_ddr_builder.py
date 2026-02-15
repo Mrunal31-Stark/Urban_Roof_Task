@@ -4,11 +4,7 @@ import unittest
 import zipfile
 from pathlib import Path
 
-from src.ddr_builder import build_ddr, load_document, render_markdown, render_simple_pdf
-from src.ddr_builder import build_ddr, load_document, render_markdown
-import unittest
-
-from src.ddr_builder import build_ddr, render_markdown
+from src.ddr_builder import build_ddr, load_document, render_markdown, render_report_from_ddr_json, render_simple_pdf
 
 
 class TestDDRBuilder(unittest.TestCase):
@@ -16,15 +12,22 @@ class TestDDRBuilder(unittest.TestCase):
         ddr = build_ddr("", "")
         md = render_markdown(ddr)
         self.assertIn("## 1. Property Issue Summary", md)
-        self.assertIn("## 7. Missing or Unclear Information", md)
+        self.assertIn("## 2. Introduction", md)
+        self.assertIn("## 3. Area-wise Observations", md)
+        self.assertIn("## 4. Probable Root Cause", md)
+        self.assertIn("## 5. Severity Assessment (with reasoning)", md)
+        self.assertIn("## 6. Recommended Actions", md)
+        self.assertIn("## 7. Additional Notes", md)
+        self.assertIn("## 8. Missing or Unclear Information", md)
+        self.assertIn("## 9. Conflicts Detected", md)
         self.assertIn("Not Available", md)
 
-    def test_dedup_and_area_merge(self):
-        inspection = "Roof terrace shows damp patches.\nRoof terrace shows damp patches."
-        thermal = "Area roof terrace recorded 33 C anomaly."
+    def test_merge_and_conflict_detection(self):
+        inspection = "Roof area no damage observed.\nRoof area moisture near flashing."
+        thermal = "Roof hotspot recorded at 78 C."
         ddr = build_ddr(inspection, thermal)
-        self.assertIsNotNone(ddr.area_wise_observations.get("Roof"))
-        self.assertEqual(len(ddr.property_issue_summary), 1)
+        self.assertIn("hotspot >= 70", "\n".join(ddr.conflicts_detected))
+        self.assertEqual(ddr.severity_assessment["level"], "High")
 
     def test_load_document_multiple_formats(self):
         with tempfile.TemporaryDirectory() as td:
@@ -45,15 +48,6 @@ class TestDDRBuilder(unittest.TestCase):
             csv_file.write_text("area,observation\nroof,damp patch", encoding="utf-8")
             text, _ = load_document(str(csv_file))
             self.assertIn("damp patch", text)
-            self.assertIn("Roof leak", load_document(str(txt)))
-
-            js = base / "thermal.json"
-            js.write_text(json.dumps({"temp": "34 C anomaly"}), encoding="utf-8")
-            self.assertIn("34 C anomaly", load_document(str(js)))
-
-            csv_file = base / "obs.csv"
-            csv_file.write_text("area,observation\nroof,damp patch", encoding="utf-8")
-            self.assertIn("damp patch", load_document(str(csv_file)))
 
             docx = base / "report.docx"
             xml = """<?xml version='1.0' encoding='UTF-8' standalone='yes'?><w:document xmlns:w='http://schemas.openxmlformats.org/wordprocessingml/2006/main'><w:body><w:p><w:r><w:t>Bathroom wall moisture found</w:t></w:r></w:p></w:body></w:document>"""
@@ -62,17 +56,28 @@ class TestDDRBuilder(unittest.TestCase):
             text, _ = load_document(str(docx))
             self.assertIn("Bathroom wall moisture", text)
 
+    def test_render_from_ddr_json_uses_required_format(self):
+        payload = {
+            "property_issue_summary": ["Roof dampness observed."],
+            "area_wise_observations": {"Roof": ["[Inspection Report] Roof dampness observed."]},
+            "probable_root_cause": ["Possible cause: failed joint seal."],
+            "severity_assessment": {"level": "Medium", "reasoning": "Moisture anomaly present."},
+            "recommended_actions": ["Recommend re-sealing joints."],
+            "additional_notes": ["Thermal scan captured."],
+            "missing_or_unclear_information": ["Ambient temperature: Not Available"],
+            "conflicts": ["Not Available"],
+        }
+        md = render_report_from_ddr_json(json.dumps(payload))
+        self.assertIn("## 2. Introduction", md)
+        self.assertIn("## 9. Conflicts Detected", md)
+        self.assertIn("- Severity Level: Medium", md)
+
     def test_render_simple_pdf(self):
         with tempfile.TemporaryDirectory() as td:
             out = Path(td) / "ddr.pdf"
             render_simple_pdf("# Title\n- line", out)
             data = out.read_bytes()
             self.assertTrue(data.startswith(b"%PDF-1.4"))
-            self.assertIn("Bathroom wall moisture", load_document(str(docx)))
-
-        roof_items = ddr.area_wise_observations.get("Roof")
-        self.assertIsNotNone(roof_items)
-        self.assertEqual(len(ddr.property_issue_summary), 1)
 
 
 if __name__ == "__main__":

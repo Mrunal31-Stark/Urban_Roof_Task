@@ -3,7 +3,9 @@
     "Roof terrace shows damp patches near the north parapet and visible seepage marks.",
     "Ceiling in bedroom has water stains and minor paint blistering.",
     "Bathroom wall has mold growth behind the shower mixer.",
-    "Thermal interpretation suggests trapped moisture in slab and wall interface."
+    "Area: Roof terrace north edge recorded 38.6 C hotspot at 11:00 AM.",
+    "Thermal interpretation suggests trapped moisture in slab and wall interface.",
+    "Recommend moisture meter validation and post-repair thermal retest."
   ],
   "area_wise_observations": {
     "Ceiling": [
@@ -33,18 +35,21 @@
   ],
   "severity_assessment": {
     "level": "High",
-    "reasoning": "water ingress indicators are present; moisture/thermal anomalies were identified"
+    "reasoning": "Structural crack appears with moisture indicators; escalation advised."
   },
   "recommended_actions": [
     "Recommend re-sealing terrace joints and checking drainage slope.",
     "Recommend moisture meter validation and post-repair thermal retest."
   ],
   "additional_notes": [
-    "Thermal input captured: Area: Roof terrace north edge recorded 38.6 C hotspot at 11:00 AM.",
-    "Thermal input captured: Area: Bedroom ceiling recorded 24.1 C cooler patch below terrace slab.",
-    "Thermal input captured: Area: Bathroom wet wall recorded 27.8 C with irregular thermal anomaly."
+    "Moisture observed in Roof while thermal values include normal range readings.",
+    "Moisture observed in Wall while thermal values include normal range readings."
   ],
   "missing_or_unclear_information": [
     "Not Available"
+  ],
+  "conflicts_detected": [
+    "Moisture observed in Roof while thermal values include normal range readings.",
+    "Moisture observed in Wall while thermal values include normal range readings."
   ]
 }
