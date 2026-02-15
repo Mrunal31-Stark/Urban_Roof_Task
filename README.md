@@ -24,6 +24,20 @@ Core pipeline stages:
 6. `root_cause_engine.py` – explicit root-cause statement extraction.
 7. `report_builder.py` – assembles final DDR schema + confidence scores.
 
+## Installation
+
+1. **Clone the repository:**
+   ```bash
+   git clone https://github.com/Mrunal31-Stark/Urban_Roof_Task.git
+   cd Urban_Roof_Task
+   ```
+
+2. **Install dependencies:**
+   Ensure you have Python 3.8+ installed.
+   ```bash
+   pip install -r requirements.txt
+   ```
+
 ## Run web app
 
 ```bash
