@@ -1,0 +1,7 @@
+fastapi
+uvicorn
+pydantic
+python-multipart
+reportlab
+jinja2
+scikit-learn

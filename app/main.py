@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 from __future__ import annotations
-
+from fastapi import FastAPI
 import json
 import secrets
 import sys
@@ -8,6 +8,11 @@ from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
+app = FastAPI(title="DDR AI Report Generator")
+import os
+import uvicorn
+
+
 
 THIS_DIR = Path(__file__).resolve().parent
 ROOT_DIR = THIS_DIR.parent
@@ -156,4 +161,5 @@ def run(host: str = "0.0.0.0", port: int = 8010) -> None:
 
 
 if __name__ == "__main__":
-    run()
+    port = int(os.environ.get("PORT", 8010))
+    uvicorn.run("app.main:app", host="0.0.0.0", port=port)
