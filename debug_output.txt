@@ -1,0 +1,19 @@
+Current working directory: D:\Secure RAG System for Private Documents\Urban_Roof_Task\Urban_Roof_Task
+sys.path: ['D:\\Secure RAG System for Private Documents\\Urban_Roof_Task\\Urban_Roof_Task', 'D:\\Secure RAG System for Private Documents\\Urban_Roof_Task\\Urban_Roof_Task', 'C:\\Python312\\python312.zip', 'C:\\Python312\\DLLs', 'C:\\Python312\\Lib', 'C:\\Python312', 'C:\\Users\\Acer\\AppData\\Roaming\\Python\\Python312\\site-packages', 'C:\\Users\\Acer\\AppData\\Roaming\\Python\\Python312\\site-packages\\win32', 'C:\\Users\\Acer\\AppData\\Roaming\\Python\\Python312\\site-packages\\win32\\lib', 'C:\\Users\\Acer\\AppData\\Roaming\\Python\\Python312\\site-packages\\Pythonwin', 'C:\\Python312\\Lib\\site-packages']
+
+--- Checking Port 8010 ---
+Port 8010 is OPEN (Something is running there).
+
+--- Checking Imports ---
+Attempting to import app.main...
+Successfully imported app.main
+Attempting to import src.ddr_builder...
+Successfully imported src.ddr_builder
+Attempting to import app.core.extractor...
+Successfully imported app.core.extractor
+
+--- Checking DB Init ---
+Attempting to run init_db()...
+Successfully ran init_db()
+
+--- Check Complete ---
